@@ -113,4 +113,5 @@ export default defineConfig({
     formats: ['json', 'svg', 'png', 'webp'],
     renderer: 'tiers',
     includePrivate: true,
+    includePastSponsors: true,
 })
