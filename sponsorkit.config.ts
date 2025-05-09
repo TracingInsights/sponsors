@@ -75,8 +75,7 @@ const sponsors: BadgePreset = {
     },
 }
 
-export default defineConfig({
-    includePrivate: true,
+export default defineConfig({    
     tiers: [
         {
             title: 'Past Members',
@@ -109,14 +108,9 @@ export default defineConfig({
             preset: xl,
         },
     ],
-
-
     sponsorsAutoMerge: true,
-
-
     outputDir: '.',
     formats: ['json', 'svg', 'png', 'webp'],
     renderer: 'tiers',
-
-
+    includePrivate: true,
 })
