@@ -76,7 +76,7 @@ const sponsors: BadgePreset = {
 }
 
 export default defineConfig({
-    // includePrivate: true,
+    includePrivate: true,
     tiers: [
         {
             title: 'Past Members',
