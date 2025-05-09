@@ -112,6 +112,4 @@ export default defineConfig({
     outputDir: '.',
     formats: ['json', 'svg', 'png', 'webp'],
     renderer: 'tiers',
-    includePrivate: true,
-    includePastSponsors: true,
 })
