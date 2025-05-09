@@ -26,7 +26,7 @@ jobs:
         run: npm run build
         env:
           SPONSORKIT_GITHUB_TOKEN: ${{ secrets.SPONSORKIT_GITHUB_TOKEN }}
-          # SPONSORKIT_PATREON_TOKEN: ${{ secrets.SPONSORKIT_PATREON_TOKEN }}
+          SPONSORKIT_PATREON_TOKEN: ${{ secrets.SPONSORKIT_PATREON_TOKEN }}
           # SPONSORKIT_LIBERAPAY_LOGIN: ${{ secrets.SPONSORKIT_LIBERAPAY_LOGIN }}
           SPONSORKIT_GITHUB_LOGIN: tracinginsights
           # SPONSORKIT_OPENCOLLECTIVE_KEY: ${{ secrets.SPONSORKIT_OPENCOLLECTIVE_KEY }}
