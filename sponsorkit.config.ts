@@ -9,6 +9,7 @@ const small: BadgePreset = {
     container: {
         sidePadding: 30,
     },
+    textColor: '#00ff00',
 }
 
 const medium: BadgePreset = {
@@ -23,6 +24,7 @@ const medium: BadgePreset = {
     name: {
         maxLength: 10,
     },
+    textColor: '#00ff00',
 }
 
 const large: BadgePreset = {
@@ -37,6 +39,7 @@ const large: BadgePreset = {
     name: {
         maxLength: 16,
     },
+    textColor: '#00ff00',
 }
 
 const xl: BadgePreset = {
@@ -51,6 +54,7 @@ const xl: BadgePreset = {
     name: {
         maxLength: 20,
     },
+    textColor: '#00ff00',
 }
 
 const past: BadgePreset = {
@@ -62,6 +66,7 @@ const past: BadgePreset = {
     container: {
         sidePadding: 35,
     },
+    textColor: '#00ff00',
 }
 
 const sponsors: BadgePreset = {
@@ -73,6 +78,7 @@ const sponsors: BadgePreset = {
     container: {
         sidePadding: 30,
     },
+    textColor: '#00ff00',
 }
 
 export default defineConfig({    
