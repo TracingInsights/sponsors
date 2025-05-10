@@ -110,13 +110,20 @@ const postProcessSVG = () => {
 export default defineConfig({    
     // Set global SVG styling
     svgInlineCSS: `
+        text {
+          font-weight: 300;
+          font-size: 14px;
+          fill: #00ff00;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+        .sponsorkit-link {
+          cursor: pointer;
+        }
         .sponsorkit-tier-title {
-            fill: #00ff00 !important;
+          font-weight: 500;
+          font-size: 20px;
         }
-        .sponsorkit-name {
-            fill: #00ff00 !important;
-        }
-    `,
+        `,
     
     tiers: [
         {
