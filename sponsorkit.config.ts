@@ -85,6 +85,11 @@ export default defineConfig({
             fill: #00ff00 !important;
         }
     `,
+
+    onSVGGenerated(svg) {
+        // Add rel="nofollow noref" to all links in the SVG
+        return svg.replace(/<a /g, '<a rel="nofollow noreferrer noopener" ');
+    },
     
     tiers: [
         {
