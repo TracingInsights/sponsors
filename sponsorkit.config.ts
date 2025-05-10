@@ -76,42 +76,40 @@ const sponsors: BadgePreset = {
 }
 
 export default defineConfig({    
+    theme: {
+        text: {
+            color: '#00ff00', // Set text color to bright green
+        },
+    },
     tiers: [
         {
             title: 'Past Members',
             monthlyDollars: -1,
             preset: past,
-            textColor: '#00ff00',
         },
         {
             title: 'Backers',
             preset: small,
-            textColor: '#00ff00',
         },
         {
             title: 'Members',
             monthlyDollars: 10,
             preset: sponsors,
-            textColor: '#00ff00',
-
         },
         {
             title: 'Silver Members',
             monthlyDollars: 50,
             preset: medium,
-            textColor: '#00ff00',
         },
         {
             title: 'Gold Members',
             monthlyDollars: 100,
             preset: large,
-            textColor: '#00ff00',
         },
         {
             title: 'Platinum Sponsors',
             monthlyDollars: 500,
             preset: xl,
-            textColor: '#00ff00',
         },
     ],
     sponsorsAutoMerge: true,
