@@ -62,9 +62,6 @@ const past: BadgePreset = {
     container: {
         sidePadding: 35,
     },
-    name: {
-        color: '#00ff00'
-    },
 }
 
 const sponsors: BadgePreset = {
@@ -84,6 +81,7 @@ export default defineConfig({
             title: 'Past Members',
             monthlyDollars: -1,
             preset: past,
+            titleColor: '#00ff00',
         },
         {
             title: 'Backers',
