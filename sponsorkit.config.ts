@@ -76,12 +76,21 @@ const sponsors: BadgePreset = {
 }
 
 export default defineConfig({    
+    // Set global SVG styling
+    svgInlineCSS: `
+        .sponsorkit-tier-title {
+            fill: #00ff00 !important;
+        }
+        .sponsorkit-name {
+            fill: #00ff00 !important;
+        }
+    `,
+    
     tiers: [
         {
             title: 'Past Members',
             monthlyDollars: -1,
             preset: past,
-            titleColor: '#00ff00',
         },
         {
             title: 'Backers',
