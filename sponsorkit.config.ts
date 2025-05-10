@@ -62,6 +62,9 @@ const past: BadgePreset = {
     container: {
         sidePadding: 35,
     },
+    name: {
+        color: '#00ff00'
+    },
 }
 
 const sponsors: BadgePreset = {
@@ -76,11 +79,6 @@ const sponsors: BadgePreset = {
 }
 
 export default defineConfig({    
-    theme: {
-        text: {
-            color: '#00ff00', // Set text color to bright green
-        },
-    },
     tiers: [
         {
             title: 'Past Members',
