@@ -9,7 +9,6 @@ const small: BadgePreset = {
     container: {
         sidePadding: 30,
     },
-    textColor: '#00ff00',
 }
 
 const medium: BadgePreset = {
@@ -24,7 +23,6 @@ const medium: BadgePreset = {
     name: {
         maxLength: 10,
     },
-    textColor: '#00ff00',
 }
 
 const large: BadgePreset = {
@@ -39,7 +37,6 @@ const large: BadgePreset = {
     name: {
         maxLength: 16,
     },
-    textColor: '#00ff00',
 }
 
 const xl: BadgePreset = {
@@ -54,7 +51,6 @@ const xl: BadgePreset = {
     name: {
         maxLength: 20,
     },
-    textColor: '#00ff00',
 }
 
 const past: BadgePreset = {
@@ -66,7 +62,6 @@ const past: BadgePreset = {
     container: {
         sidePadding: 35,
     },
-    textColor: '#00ff00',
 }
 
 const sponsors: BadgePreset = {
@@ -78,7 +73,6 @@ const sponsors: BadgePreset = {
     container: {
         sidePadding: 30,
     },
-    textColor: '#00ff00',
 }
 
 export default defineConfig({    
@@ -87,31 +81,37 @@ export default defineConfig({
             title: 'Past Members',
             monthlyDollars: -1,
             preset: past,
+            textColor: '#00ff00',
         },
         {
             title: 'Backers',
             preset: small,
+            textColor: '#00ff00',
         },
         {
             title: 'Members',
             monthlyDollars: 10,
             preset: sponsors,
+            textColor: '#00ff00',
 
         },
         {
             title: 'Silver Members',
             monthlyDollars: 50,
             preset: medium,
+            textColor: '#00ff00',
         },
         {
             title: 'Gold Members',
             monthlyDollars: 100,
             preset: large,
+            textColor: '#00ff00',
         },
         {
             title: 'Platinum Sponsors',
             monthlyDollars: 500,
             preset: xl,
+            textColor: '#00ff00',
         },
     ],
     sponsorsAutoMerge: true,
