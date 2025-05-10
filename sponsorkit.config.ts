@@ -113,7 +113,7 @@ export default defineConfig({
         text {
           font-weight: 300;
           font-size: 14px;
-          fill: #00ff00;
+          fill: #fff;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
         }
         .sponsorkit-link {
