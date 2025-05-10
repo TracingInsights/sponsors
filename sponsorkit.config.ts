@@ -1,4 +1,6 @@
 import { defineConfig, BadgePreset } from 'sponsorkit'
+import * as fs from 'fs'
+import * as path from 'path'
 
 const small: BadgePreset = {
     avatar: {
@@ -75,6 +77,36 @@ const sponsors: BadgePreset = {
     },
 }
 
+// Function to post-process SVG files
+const postProcessSVG = () => {
+    const outputDir = '.'
+    const svgFiles = ['sponsors.svg']
+    
+    // Process each SVG file
+    svgFiles.forEach(filename => {
+        const filePath = path.join(outputDir, filename)
+        
+        // Check if file exists
+        if (fs.existsSync(filePath)) {
+            try {
+                // Read the SVG file
+                const svgContent = fs.readFileSync(filePath, 'utf8')
+                
+                // Add rel="nofollow noreferrer noopener" to all links and set text color to #00ff00
+                const modifiedSvg = svgContent
+                    .replace(/<a /g, '<a rel="nofollow noreferrer noopener" ')
+                    
+                
+                // Write the modified SVG back to the file
+                fs.writeFileSync(filePath, modifiedSvg, 'utf8')
+                console.log(`Successfully processed ${filename}`)
+            } catch (error) {
+                console.error(`Error processing ${filename}:`, error)
+            }
+        }
+    })
+}
+
 export default defineConfig({    
     // Set global SVG styling
     svgInlineCSS: `
@@ -85,11 +117,6 @@ export default defineConfig({
             fill: #00ff00 !important;
         }
     `,
-
-    onSVGGenerated(svg) {
-        // Add rel="nofollow noref" to all links in the SVG
-        return svg.replace(/<a /g, '<a rel="nofollow noreferrer noopener" ');
-    },
     
     tiers: [
         {
@@ -127,3 +154,6 @@ export default defineConfig({
     formats: ['json', 'svg', 'png', 'webp'],
     renderer: 'tiers',
 })
+
+// Run post-processing after the config is exported
+setTimeout(postProcessSVG, 5000) // Wait 5 seconds for SponsorKit to generate files
