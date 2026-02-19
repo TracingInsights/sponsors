@@ -108,6 +108,50 @@ function movePastMembersBelowMembers<T extends { tier: { title?: string } }>(tie
     return tierPartitions
 }
 
+function normalizeIdentityPart(value?: string): string {
+    return (value || '').trim().toLowerCase()
+}
+
+function getSponsorAggregateKey(sponsorship: Sponsorship): string {
+    const provider = normalizeIdentityPart(String(sponsorship.provider || 'unknown'))
+    const socialLogins = sponsorship.sponsor.socialLogins
+    if (socialLogins && Object.keys(socialLogins).length > 0) {
+        return Object.entries(socialLogins)
+            .map(([provider, login]) => `${normalizeIdentityPart(provider)}:${normalizeIdentityPart(login)}`)
+            .sort()
+            .join('|')
+    }
+
+    const linkUrl = normalizeIdentityPart(sponsorship.sponsor.linkUrl || sponsorship.sponsor.websiteUrl)
+    if (linkUrl) return linkUrl
+
+    const login = normalizeIdentityPart(sponsorship.sponsor.login)
+    if (login) return `${provider}|${login}`
+
+    const name = normalizeIdentityPart(sponsorship.sponsor.name)
+    if (name) return `${provider}|${name}`
+
+    return `${provider}|${normalizeIdentityPart(sponsorship.createdAt || '')}|${normalizeIdentityPart(sponsorship.sponsor.avatarUrl)}`
+}
+
+function formatDollars(amount: number): string {
+    const normalized = Number.isInteger(amount) ? String(amount) : amount.toFixed(2).replace(/\.?0+$/, '')
+    return `$${normalized}`
+}
+
+function getContributionAmount(sponsorship: Sponsorship): number {
+    if (sponsorship.monthlyDollars > 0) {
+        return sponsorship.monthlyDollars
+    }
+
+    const tierAmount = sponsorship.tierName?.match(/\$([0-9]+(?:\.[0-9]+)?)/)?.[1]
+    if (tierAmount) {
+        return Number(tierAmount)
+    }
+
+    return 0
+}
+
 function composeLeaderboard(composer: SvgComposer, allSponsors: Sponsorship[], config: SponsorkitConfig, theme: 'dark' | 'light') {
     const isDark = theme === 'dark'
     const textColor = isDark ? '#e6edf3' : '#1f2328'
@@ -304,15 +348,58 @@ function composeAllTimeLeaderboard(composer: SvgComposer, allSponsors: Sponsorsh
     const activeColor = isDark ? '#3fb950' : '#1a7f37'
     const inactiveColor = isDark ? '#f85149' : '#cf222e'
 
-    const allPublic = allSponsors
+    type AggregatedSponsor = {
+        sponsor: Sponsorship['sponsor']
+        createdAt?: string
+        totalAmount: number
+        highestMonthlyDollars: number
+        isActive: boolean
+    }
+
+    const aggregateMap = new Map<string, AggregatedSponsor>()
+    for (const sponsorship of allSponsors) {
+        const key = getSponsorAggregateKey(sponsorship)
+        const contributionAmount = getContributionAmount(sponsorship)
+        const currentMonthlyAmount = Math.max(0, sponsorship.monthlyDollars)
+        const existing = aggregateMap.get(key)
+
+        if (!existing) {
+            aggregateMap.set(key, {
+                sponsor: sponsorship.sponsor,
+                createdAt: sponsorship.createdAt,
+                totalAmount: contributionAmount,
+                highestMonthlyDollars: currentMonthlyAmount,
+                isActive: sponsorship.monthlyDollars > 0,
+            })
+            continue
+        }
+
+        existing.totalAmount += contributionAmount
+        existing.highestMonthlyDollars = Math.max(existing.highestMonthlyDollars, currentMonthlyAmount)
+        existing.isActive = existing.isActive || sponsorship.monthlyDollars > 0
+
+        const existingDate = existing.createdAt ? Date.parse(existing.createdAt) : Number.NaN
+        const sponsorDate = sponsorship.createdAt ? Date.parse(sponsorship.createdAt) : Number.NaN
+        if (!Number.isNaN(sponsorDate) && (Number.isNaN(existingDate) || sponsorDate < existingDate)) {
+            existing.createdAt = sponsorship.createdAt
+        }
+
+        const existingHasUrl = Boolean(existing.sponsor.websiteUrl || existing.sponsor.linkUrl)
+        const sponsorHasUrl = Boolean(sponsorship.sponsor.websiteUrl || sponsorship.sponsor.linkUrl)
+        if (!existingHasUrl && sponsorHasUrl) {
+            existing.sponsor = sponsorship.sponsor
+        }
+    }
+
+    const aggregatedSponsors = Array.from(aggregateMap.values())
         .sort((a, b) => {
-            const aAmount = Math.max(a.monthlyDollars, 0)
-            const bAmount = Math.max(b.monthlyDollars, 0)
-            if (bAmount !== aAmount) return bAmount - aAmount
-            return (a.createdAt || '').localeCompare(b.createdAt || '')
+            if (b.totalAmount !== a.totalAmount) return b.totalAmount - a.totalAmount
+            const byDate = (a.createdAt || '').localeCompare(b.createdAt || '')
+            if (byDate !== 0) return byDate
+            return (a.sponsor.name || a.sponsor.login).localeCompare(b.sponsor.name || b.sponsor.login)
         })
 
-    if (allPublic.length === 0) return
+    if (aggregatedSponsors.length === 0) return
 
     const width = config.width || 800
     const tableX = 30
@@ -346,17 +433,16 @@ function composeAllTimeLeaderboard(composer: SvgComposer, allSponsors: Sponsorsh
     colX += colWidths.tier
     composer.addRaw(`<text x="${colX}" y="${headerY + 26}" fill="${subTextColor}" font-size="12" font-weight="600">Since</text>`)
     colX += colWidths.since
-    composer.addRaw(`<text x="${colX}" y="${headerY + 26}" fill="${subTextColor}" font-size="12" font-weight="600">$/month</text>`)
+    composer.addRaw(`<text x="${colX}" y="${headerY + 26}" fill="${subTextColor}" font-size="12" font-weight="600">Combined</text>`)
     colX += colWidths.amount
     composer.addRaw(`<text x="${colX}" y="${headerY + 26}" fill="${subTextColor}" font-size="12" font-weight="600">Status</text>`)
 
     composer.height += headerHeight
 
-    allPublic.forEach((s, i) => {
+    aggregatedSponsors.forEach((s, i) => {
         const rowY = composer.height
         const bg = i % 2 === 0 ? rowBg : rowAltBg
-        const isLast = i === allPublic.length - 1
-        const isActive = s.monthlyDollars > 0
+        const isLast = i === aggregatedSponsors.length - 1
 
         if (isLast) {
             composer.addRaw(`<rect x="${tableX}" y="${rowY}" width="${tableWidth}" height="${rowHeight}" fill="${bg}" rx="0"/>`)
@@ -383,19 +469,19 @@ function composeAllTimeLeaderboard(composer: SvgComposer, allSponsors: Sponsorsh
         }
         cx += colWidths.name
 
-        const tierLabel = isActive ? getTierLabel(s.monthlyDollars) : '—'
+        const tierLabel = s.highestMonthlyDollars > 0 ? getTierLabel(s.highestMonthlyDollars) : '—'
         composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${subTextColor}" font-size="12">${tierLabel}</text>`)
         cx += colWidths.tier
 
         composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${subTextColor}" font-size="12">${formatDate(s.createdAt)}</text>`)
         cx += colWidths.since
 
-        const amountDisplay = isActive ? `$${s.monthlyDollars}` : '—'
+        const amountDisplay = s.totalAmount > 0 ? formatDollars(s.totalAmount) : '—'
         composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${textColor}" font-size="13" font-weight="600">${amountDisplay}</text>`)
         cx += colWidths.amount
 
-        const statusLabel = isActive ? '✅ Active' : '⏸️ Past'
-        const statusColor = isActive ? activeColor : inactiveColor
+        const statusLabel = s.isActive ? '✅ Active' : '⏸️ Past'
+        const statusColor = s.isActive ? activeColor : inactiveColor
         composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${statusColor}" font-size="12">${statusLabel}</text>`)
 
         composer.height += rowHeight
