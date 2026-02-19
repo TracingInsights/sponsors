@@ -1,6 +1,4 @@
-import { defineConfig, BadgePreset } from 'sponsorkit'
-import * as fs from 'fs'
-import * as path from 'path'
+import { defineConfig, partitionTiers, tierPresets, type BadgePreset, type Sponsorship, type SvgComposer, type SponsorkitConfig } from 'sponsorkit'
 
 const small: BadgePreset = {
     avatar: {
@@ -57,12 +55,12 @@ const xl: BadgePreset = {
 
 const past: BadgePreset = {
     avatar: {
-        size: 20,
+        size: 25,
     },
-    boxWidth: 22,
-    boxHeight: 22,
+    boxWidth: 30,
+    boxHeight: 30,
     container: {
-        sidePadding: 35,
+        sidePadding: 30,
     },
 }
 
@@ -77,90 +75,275 @@ const sponsors: BadgePreset = {
     },
 }
 
-// Function to post-process SVG files
-const postProcessSVG = () => {
-    const outputDir = '.'
-    const svgFiles = ['sponsors.svg']
-    
-    // Process each SVG file
-    svgFiles.forEach(filename => {
-        const filePath = path.join(outputDir, filename)
-        
-        // Check if file exists
-        if (fs.existsSync(filePath)) {
-            try {
-                // Read the SVG file
-                const svgContent = fs.readFileSync(filePath, 'utf8')
-                
-                // Add rel="nofollow noreferrer noopener" to all links and set text color to #00ff00
-                const modifiedSvg = svgContent
-                    .replace(/<a /g, '<a rel="nofollow noreferrer noopener" ')
-                    
-                
-                // Write the modified SVG back to the file
-                fs.writeFileSync(filePath, modifiedSvg, 'utf8')
-                console.log(`Successfully processed ${filename}`)
-            } catch (error) {
-                console.error(`Error processing ${filename}:`, error)
-            }
-        }
-    })
+function getTierLabel(monthlyDollars: number): string {
+    return tierLabels.find(t => monthlyDollars >= t.minDollars)?.label ?? '☕ Backer'
 }
 
-export default defineConfig({    
-    // Set global SVG styling
-    svgInlineCSS: `
-        text {
-          font-weight: 300;
-          font-size: 14px;
-          fill: #fff;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+function formatDate(dateStr?: string): string {
+    if (!dateStr) return '—'
+    const d = new Date(dateStr)
+    return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+}
+
+function escapeXml(str: string): string {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
+}
+
+function composeLeaderboard(composer: SvgComposer, allSponsors: Sponsorship[], config: SponsorkitConfig, theme: 'dark' | 'light') {
+    const isDark = theme === 'dark'
+    const textColor = isDark ? '#e6edf3' : '#1f2328'
+    const subTextColor = isDark ? '#8b949e' : '#656d76'
+    const headerBg = isDark ? '#001a3a' : '#f6f8fa'
+    const rowBg = isDark ? '#002451' : '#ffffff'
+    const rowAltBg = isDark ? '#001a3a' : '#f6f8fa'
+    const borderColor = isDark ? '#003366' : '#d0d7de'
+    const accentColor = isDark ? '#00ff00' : '#007a00'
+
+    const activeSponsors = allSponsors
+        .filter(s => s.monthlyDollars > 0 && s.privacyLevel !== 'PRIVATE')
+        .sort((a, b) => b.monthlyDollars - a.monthlyDollars)
+
+    if (activeSponsors.length === 0) return
+
+    const width = config.width || 800
+    const tableX = 30
+    const tableWidth = width - 60
+    const rowHeight = 36
+    const headerHeight = 40
+    const colWidths = {
+        rank: 50,
+        name: tableWidth - 50 - 120 - 120 - 120,
+        tier: 120,
+        since: 120,
+        amount: 120,
+    }
+
+    composer.addSpan(30)
+
+    composer.addRaw(`<text x="${width / 2}" y="${composer.height}" text-anchor="middle" class="sponsorkit-tier-title">🏆 Sponsor Leaderboard</text>`)
+    composer.height += 30
+
+    // Table header
+    const headerY = composer.height
+    composer.addRaw(`<rect x="${tableX}" y="${headerY}" width="${tableWidth}" height="${headerHeight}" fill="${headerBg}" rx="6" ry="6"/>`)
+    composer.addRaw(`<rect x="${tableX}" y="${headerY + headerHeight - 1}" width="${tableWidth}" height="1" fill="${borderColor}"/>`)
+
+    let colX = tableX + 20
+    composer.addRaw(`<text x="${colX}" y="${headerY + 26}" fill="${subTextColor}" font-size="12" font-weight="600">#</text>`)
+    colX += colWidths.rank
+    composer.addRaw(`<text x="${colX}" y="${headerY + 26}" fill="${subTextColor}" font-size="12" font-weight="600">Sponsor</text>`)
+    colX += colWidths.name
+    composer.addRaw(`<text x="${colX}" y="${headerY + 26}" fill="${subTextColor}" font-size="12" font-weight="600">Tier</text>`)
+    colX += colWidths.tier
+    composer.addRaw(`<text x="${colX}" y="${headerY + 26}" fill="${subTextColor}" font-size="12" font-weight="600">Since</text>`)
+    colX += colWidths.since
+    composer.addRaw(`<text x="${colX}" y="${headerY + 26}" fill="${subTextColor}" font-size="12" font-weight="600">$/month</text>`)
+
+    composer.height += headerHeight
+
+    // Table rows
+    activeSponsors.forEach((s, i) => {
+        const rowY = composer.height
+        const bg = i % 2 === 0 ? rowBg : rowAltBg
+        const isLast = i === activeSponsors.length - 1
+
+        if (isLast) {
+            composer.addRaw(`<rect x="${tableX}" y="${rowY}" width="${tableWidth}" height="${rowHeight}" fill="${bg}" rx="0"/>`)
+            composer.addRaw(`<rect x="${tableX}" y="${rowY + rowHeight - 6}" width="${tableWidth}" height="6" fill="${bg}" rx="6" ry="6"/>`)
+        } else {
+            composer.addRaw(`<rect x="${tableX}" y="${rowY}" width="${tableWidth}" height="${rowHeight}" fill="${bg}"/>`)
         }
-        .sponsorkit-link {
-          cursor: pointer;
+
+        composer.addRaw(`<rect x="${tableX}" y="${rowY + rowHeight - 1}" width="${tableWidth}" height="1" fill="${borderColor}" opacity="0.5"/>`)
+
+        let cx = tableX + 20
+        const rankMedals = ['🥇', '🥈', '🥉']
+        const rankLabel = i < 3 ? rankMedals[i] : `${i + 1}`
+        composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${textColor}" font-size="13">${rankLabel}</text>`)
+        cx += colWidths.rank
+
+        const name = escapeXml((s.sponsor.name || s.sponsor.login).trim())
+        const displayName = name.length > 20 ? name.slice(0, 18) + '…' : name
+        const url = s.sponsor.websiteUrl || s.sponsor.linkUrl
+        if (url) {
+            composer.addRaw(`<a href="${escapeXml(url)}" target="_blank"><text x="${cx}" y="${rowY + 24}" fill="${accentColor}" font-size="13">${displayName}</text></a>`)
+        } else {
+            composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${textColor}" font-size="13">${displayName}</text>`)
         }
-        .sponsorkit-tier-title {
-          font-weight: 500;
-          font-size: 20px;
+        cx += colWidths.name
+
+        composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${subTextColor}" font-size="12">${getTierLabel(s.monthlyDollars)}</text>`)
+        cx += colWidths.tier
+
+        composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${subTextColor}" font-size="12">${formatDate(s.createdAt)}</text>`)
+        cx += colWidths.since
+
+        composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${textColor}" font-size="13" font-weight="600">$${s.monthlyDollars}</text>`)
+
+        composer.height += rowHeight
+    })
+
+    composer.addSpan(10)
+}
+
+function composeCurrentSponsors(composer: SvgComposer, allSponsors: Sponsorship[], config: SponsorkitConfig, theme: 'dark' | 'light') {
+    const isDark = theme === 'dark'
+    const subTextColor = isDark ? '#8b949e' : '#656d76'
+
+    const activeSponsors = allSponsors.filter(s => s.monthlyDollars > 0 && s.privacyLevel !== 'PRIVATE')
+    const totalActive = activeSponsors.length
+    const totalPrivate = allSponsors.filter(s => s.monthlyDollars > 0 && s.privacyLevel === 'PRIVATE').length
+    const totalMonthly = activeSponsors.reduce((sum, s) => sum + s.monthlyDollars, 0)
+
+    if (totalActive === 0 && totalPrivate === 0) return
+
+    const width = config.width || 800
+
+    composer.addSpan(20)
+    composer.addRaw(`<text x="${width / 2}" y="${composer.height}" text-anchor="middle" class="sponsorkit-tier-title">📊 Sponsor Stats</text>`)
+    composer.height += 25
+
+    const stats = [
+        `${totalActive}${totalPrivate > 0 ? ` (+${totalPrivate} private)` : ''} active sponsors`,
+        `$${totalMonthly}/month total`,
+    ].join('  •  ')
+
+    composer.addRaw(`<text x="${width / 2}" y="${composer.height}" text-anchor="middle" fill="${subTextColor}" font-size="13">${stats}</text>`)
+    composer.height += 20
+}
+
+const inlineCSS = `
+    text {
+      font-weight: 300;
+      font-size: 14px;
+      fill: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+    .sponsorkit-link {
+      cursor: pointer;
+    }
+    .sponsorkit-tier-title {
+      font-weight: 500;
+      font-size: 20px;
+    }
+`
+
+const tierLabels: { minDollars: number; label: string }[] = [
+    { minDollars: 500, label: '💎 Platinum' },
+    { minDollars: 100, label: '🥇 Gold' },
+    { minDollars: 50, label: '🥈 Silver' },
+    { minDollars: 25, label: '🥉 Bronze' },
+    { minDollars: 10, label: '🟢 Member' },
+    { minDollars: 0, label: '☕ Backer' },
+]
+
+const sharedTiers = [
+    {
+        title: 'Past Members',
+        monthlyDollars: -1,
+        preset: past,
+    },
+    {
+        title: 'Backers',
+        preset: small,
+    },
+    {
+        title: 'Members',
+        monthlyDollars: 10,
+        preset: sponsors,
+    },
+    {
+        title: 'Bronze Members',
+        monthlyDollars: 25,
+        preset: medium,
+    },
+    {
+        title: 'Silver Members',
+        monthlyDollars: 50,
+        preset: medium,
+    },
+    {
+        title: 'Gold Members',
+        monthlyDollars: 100,
+        preset: large,
+    },
+    {
+        title: 'Platinum Sponsors',
+        monthlyDollars: 500,
+        preset: xl,
+    },
+]
+
+function makeCustomComposer(theme: 'dark' | 'light') {
+    return async (composer: SvgComposer, allSponsors: Sponsorship[], config: SponsorkitConfig) => {
+        const tierPartitions = partitionTiers(allSponsors, config.tiers!, config.includePastSponsors)
+
+        composer.addSpan(config.padding?.top ?? 20)
+
+        for (const { tier: t, sponsors: tierSponsors } of tierPartitions) {
+            t.composeBefore?.(composer, tierSponsors, config)
+            if (t.compose) {
+                t.compose(composer, tierSponsors, config)
+            } else {
+                const preset = t.preset || tierPresets.base
+                if (tierSponsors.length && preset.avatar.size) {
+                    const paddingTop = t.padding?.top ?? 20
+                    const paddingBottom = t.padding?.bottom ?? 10
+                    if (paddingTop) composer.addSpan(paddingTop)
+                    if (t.title) {
+                        composer.addTitle(t.title).addSpan(5)
+                    }
+                    await composer.addSponsorGrid(tierSponsors, preset)
+                    if (paddingBottom) composer.addSpan(paddingBottom)
+                }
+            }
+            t.composeAfter?.(composer, tierSponsors, config)
         }
-        `,
-    
-    tiers: [
-        {
-            title: 'Past Members',
-            monthlyDollars: -1,
-            preset: past,
-        },
-        {
-            title: 'Backers',
-            preset: small,
-        },
-        {
-            title: 'Members',
-            monthlyDollars: 10,
-            preset: sponsors,
-        },
-        {
-            title: 'Silver Members',
-            monthlyDollars: 50,
-            preset: medium,
-        },
-        {
-            title: 'Gold Members',
-            monthlyDollars: 100,
-            preset: large,
-        },
-        {
-            title: 'Platinum Sponsors',
-            monthlyDollars: 500,
-            preset: xl,
-        },
-    ],
+
+        composeCurrentSponsors(composer, allSponsors, config, theme)
+        composeLeaderboard(composer, allSponsors, config, theme)
+
+        composer.addSpan(config.padding?.bottom ?? 20)
+    }
+}
+
+export default defineConfig({
+    includePrivate: true,
     sponsorsAutoMerge: true,
     outputDir: '.',
     formats: ['json', 'svg', 'png', 'webp'],
-    renderer: 'tiers',
-})
 
-// Run post-processing after the config is exported
-setTimeout(postProcessSVG, 5000) // Wait 5 seconds for SponsorKit to generate files
+    renders: [
+        {
+            name: 'sponsors',
+            renderer: 'tiers',
+            svgInlineCSS: inlineCSS.replace('fill: #fff;', 'fill: #00ff00;'),
+            tiers: sharedTiers,
+            customComposer: makeCustomComposer('dark'),
+            onSvgGenerated(svg) {
+                return svg
+                    .replace(
+                        /^(<svg[^>]*>)/,
+                        '$1<rect x="0" y="0" width="100%" height="100%" fill="#002451" rx="8"/>',
+                    )
+                    .replace(/<a /g, '<a rel="nofollow noreferrer noopener" ')
+            },
+        },
+        {
+            name: 'sponsors.light',
+            renderer: 'tiers',
+            formats: ['svg', 'png', 'webp'],
+            svgInlineCSS: inlineCSS.replace('fill: #fff;', 'fill: #1f2328;'),
+            tiers: sharedTiers,
+            customComposer: makeCustomComposer('light'),
+            onSvgGenerated(svg) {
+                return svg
+                    .replace(
+                        /^(<svg[^>]*>)/,
+                        '$1<rect x="0" y="0" width="100%" height="100%" fill="#ffffff" rx="8"/>',
+                    )
+                    .replace(/<a /g, '<a rel="nofollow noreferrer noopener" ')
+            },
+        },
+    ],
+})
