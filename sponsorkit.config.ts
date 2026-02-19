@@ -89,6 +89,25 @@ function escapeXml(str: string): string {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
 }
 
+function getPrivacyLevel(sponsorship: Sponsorship): string {
+    return (sponsorship as Sponsorship & { privacyLevel?: string }).privacyLevel ?? 'PUBLIC'
+}
+
+function movePastMembersBelowMembers<T extends { tier: { title?: string } }>(tierPartitions: T[]): T[] {
+    const pastIndex = tierPartitions.findIndex(({ tier }) => tier.title === 'Past Members')
+    if (pastIndex < 0) return tierPartitions
+
+    const [pastMembersTier] = tierPartitions.splice(pastIndex, 1)
+    const membersIndex = tierPartitions.findIndex(({ tier }) => tier.title === 'Members')
+    if (membersIndex < 0) {
+        tierPartitions.push(pastMembersTier)
+        return tierPartitions
+    }
+
+    tierPartitions.splice(membersIndex + 1, 0, pastMembersTier)
+    return tierPartitions
+}
+
 function composeLeaderboard(composer: SvgComposer, allSponsors: Sponsorship[], config: SponsorkitConfig, theme: 'dark' | 'light') {
     const isDark = theme === 'dark'
     const textColor = isDark ? '#e6edf3' : '#1f2328'
@@ -391,7 +410,7 @@ function composeCurrentSponsors(composer: SvgComposer, allSponsors: Sponsorship[
 
     const activeSponsors = allSponsors.filter(s => s.monthlyDollars > 0)
     const totalActive = activeSponsors.length
-    const totalPrivate = 0
+    const totalPrivate = activeSponsors.filter(s => getPrivacyLevel(s) === 'PRIVATE').length
     const totalMonthly = activeSponsors.reduce((sum, s) => sum + s.monthlyDollars, 0)
 
     if (totalActive === 0 && totalPrivate === 0) return
@@ -476,6 +495,7 @@ const sharedTiers = [
 function makeCustomComposer(theme: 'dark' | 'light') {
     return async (composer: SvgComposer, allSponsors: Sponsorship[], config: SponsorkitConfig) => {
         const tierPartitions = partitionTiers(allSponsors, config.tiers!, config.includePastSponsors)
+        movePastMembersBelowMembers(tierPartitions)
 
         composer.addSpan(config.padding?.top ?? 20)
 
@@ -542,6 +562,7 @@ function makePastSponsorsComposer(theme: 'dark' | 'light') {
 function makeAllTimeComposer(theme: 'dark' | 'light') {
     return async (composer: SvgComposer, allSponsors: Sponsorship[], config: SponsorkitConfig) => {
         const tierPartitions = partitionTiers(allSponsors, config.tiers!, config.includePastSponsors)
+        movePastMembersBelowMembers(tierPartitions)
 
         composer.addSpan(config.padding?.top ?? 20)
 
@@ -582,6 +603,7 @@ export default defineConfig({
         {
             name: 'sponsors',
             renderer: 'tiers',
+            includePastSponsors: true,
             svgInlineCSS: inlineCSS.replace('fill: #fff;', 'fill: #00ff00;'),
             tiers: sharedTiers,
             customComposer: makeCustomComposer('dark'),
@@ -598,6 +620,7 @@ export default defineConfig({
             name: 'sponsors.light',
             renderer: 'tiers',
             formats: ['svg', 'png', 'webp'],
+            includePastSponsors: true,
             svgInlineCSS: inlineCSS.replace('fill: #fff;', 'fill: #1f2328;'),
             tiers: sharedTiers,
             customComposer: makeCustomComposer('light'),
