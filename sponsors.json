@@ -805,7 +805,8 @@
     "privacyLevel": "PUBLIC",
     "tierName": "Patreon",
     "createdAt": "2023-03-23T14:50:38.784+00:00",
-    "provider": "patreon"
+    "provider": "patreon",
+    "totalDollars": 6.56
   },
   {
     "sponsor": {
@@ -1147,7 +1148,8 @@
     "privacyLevel": "PUBLIC",
     "tierName": "Patreon",
     "createdAt": "2023-03-25T15:07:17.417+00:00",
-    "provider": "patreon"
+    "provider": "patreon",
+    "totalDollars": 13.23
   },
   {
     "sponsor": {
@@ -4955,7 +4957,8 @@
     "privacyLevel": "PUBLIC",
     "tierName": "Patreon",
     "createdAt": "2025-04-21T20:50:50.035+00:00",
-    "provider": "patreon"
+    "provider": "patreon",
+    "totalDollars": 1.5
   },
   {
     "sponsor": {
