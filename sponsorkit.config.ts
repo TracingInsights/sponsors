@@ -619,7 +619,6 @@ export default defineConfig({
             tiers: [
                 {
                     title: 'Past Members',
-                    monthlyDollars: -1,
                     preset: past,
                 },
             ],
@@ -642,7 +641,6 @@ export default defineConfig({
             tiers: [
                 {
                     title: 'Past Members',
-                    monthlyDollars: -1,
                     preset: past,
                 },
             ],
