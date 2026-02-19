@@ -19,7 +19,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
-          cache: pnpm
+          # cache: pnpm
 
       - run: pnpm i
 
@@ -44,4 +44,5 @@ jobs:
           add: "sponsors.* sponsors.light.*"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 

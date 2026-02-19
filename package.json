@@ -5,8 +5,8 @@
     "build": "sponsorkit"
   },
   "devDependencies": {
-    "@types/node": "^25.3.0",
-    "sponsorkit": "^16.3.0"
+    "@types/node": "^25.3.0",   
+    "sponsorkit": "^17.0.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
