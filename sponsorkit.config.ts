@@ -93,6 +93,11 @@ function getPrivacyLevel(sponsorship: Sponsorship): string {
     return (sponsorship as Sponsorship & { privacyLevel?: string }).privacyLevel ?? 'PUBLIC'
 }
 
+function getSponsorDisplayName(sponsor: Sponsorship['sponsor']): string {
+    const name = (sponsor.name || sponsor.login || '').trim()
+    return name || 'Private Sponsor'
+}
+
 function movePastMembersBelowMembers<T extends { tier: { title?: string } }>(tierPartitions: T[]): T[] {
     const pastIndex = tierPartitions.findIndex(({ tier }) => tier.title === 'Past Members')
     if (pastIndex < 0) return tierPartitions
@@ -139,91 +144,9 @@ function formatDollars(amount: number): string {
     return `$${normalized}`
 }
 
-function normalizePatreonUrl(url?: string): string {
-    const normalized = normalizeIdentityPart(url)
-    return normalized.replace(/\/+$/, '')
-}
-
-async function fetchPatreonLifetimeTotals(token: string): Promise<Map<string, number>> {
-    const headers = {
-        Authorization: `bearer ${token}`,
-        'Content-Type': 'application/json',
-    }
-
-    const campaignsResponse = await fetch('https://www.patreon.com/api/oauth2/api/current_user/campaigns?include=null', {
-        method: 'GET',
-        headers,
-    })
-    if (!campaignsResponse.ok) {
-        throw new Error(`Patreon campaigns request failed with ${campaignsResponse.status}`)
-    }
-
-    const campaignsData = await campaignsResponse.json() as { data?: Array<{ id?: string }> }
-    const campaignId = campaignsData.data?.[0]?.id
-    if (!campaignId) {
-        return new Map()
-    }
-
-    let next = `https://www.patreon.com/api/oauth2/v2/campaigns/${campaignId}/members?include=user&fields%5Bmember%5D=lifetime_support_cents,patron_status&fields%5Buser%5D=url&page%5Bcount%5D=100`
-    const totals = new Map<string, number>()
-
-    while (next) {
-        const membersResponse = await fetch(next, {
-            method: 'GET',
-            headers,
-        })
-        if (!membersResponse.ok) {
-            throw new Error(`Patreon members request failed with ${membersResponse.status}`)
-        }
-
-        const membersData = await membersResponse.json() as {
-            data?: Array<{
-                attributes?: { lifetime_support_cents?: number; patron_status?: string | null }
-                relationships?: { user?: { data?: { id?: string } } }
-            }>
-            included?: Array<{
-                id?: string
-                type?: string
-                attributes?: { url?: string }
-            }>
-            links?: { next?: string }
-        }
-
-        const usersById = new Map<string, string>()
-        for (const item of membersData.included || []) {
-            if (item?.type !== 'user' || !item.id) continue
-            const normalizedUrl = normalizePatreonUrl(item.attributes?.url)
-            if (normalizedUrl) {
-                usersById.set(String(item.id), normalizedUrl)
-            }
-        }
-
-        for (const member of membersData.data || []) {
-            if (member.attributes?.patron_status == null) continue
-
-            const cents = Number(member.attributes?.lifetime_support_cents ?? 0)
-            if (!(cents > 0)) continue
-
-            const userId = member.relationships?.user?.data?.id
-            if (!userId) continue
-
-            const normalizedUrl = usersById.get(String(userId))
-            if (!normalizedUrl) continue
-
-            const dollars = cents / 100
-            const existing = totals.get(normalizedUrl) || 0
-            totals.set(normalizedUrl, Math.max(existing, dollars))
-        }
-
-        next = membersData.links?.next || ''
-    }
-
-    return totals
-}
-
 function getContributionAmount(sponsorship: Sponsorship): number {
     const totalDollars = (sponsorship as Sponsorship & { totalDollars?: number }).totalDollars
-    if (typeof totalDollars === 'number' && totalDollars > 0) {
+    if (totalDollars != null && totalDollars > 0) {
         return totalDollars
     }
 
@@ -312,7 +235,7 @@ function composeLeaderboard(composer: SvgComposer, allSponsors: Sponsorship[], c
         composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${textColor}" font-size="13">${rankLabel}</text>`)
         cx += colWidths.rank
 
-        const name = escapeXml((s.sponsor.name || s.sponsor.login).trim())
+        const name = escapeXml(getSponsorDisplayName(s.sponsor))
         const displayName = name.length > 20 ? name.slice(0, 18) + '…' : name
         const url = s.sponsor.websiteUrl || s.sponsor.linkUrl
         if (url) {
@@ -402,7 +325,7 @@ function composePastSponsorsLeaderboard(composer: SvgComposer, allSponsors: Spon
         composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${textColor}" font-size="13">${i + 1}</text>`)
         cx += colWidths.rank
 
-        const name = escapeXml((s.sponsor.name || s.sponsor.login).trim())
+        const name = escapeXml(getSponsorDisplayName(s.sponsor))
         const displayName = name.length > 20 ? name.slice(0, 18) + '…' : name
         const url = s.sponsor.websiteUrl || s.sponsor.linkUrl
         if (url) {
@@ -546,7 +469,7 @@ function composeAllTimeLeaderboard(composer: SvgComposer, allSponsors: Sponsorsh
         composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${textColor}" font-size="13">${rankLabel}</text>`)
         cx += colWidths.rank
 
-        const name = escapeXml((s.sponsor.name || s.sponsor.login).trim())
+        const name = escapeXml(getSponsorDisplayName(s.sponsor))
         const displayName = name.length > 20 ? name.slice(0, 18) + '…' : name
         const url = s.sponsor.websiteUrl || s.sponsor.linkUrl
         if (url) {
@@ -771,35 +694,6 @@ export default defineConfig({
     sponsorsAutoMerge: true,
     outputDir: '.',
     formats: ['json', 'svg', 'png', 'webp'],
-    async onSponsorsFetched(sponsors, provider) {
-        if (provider !== 'patreon') {
-            return sponsors
-        }
-
-        const token = process.env.SPONSORKIT_PATREON_TOKEN
-        if (!token) {
-            return sponsors
-        }
-
-        try {
-            const lifetimeTotals = await fetchPatreonLifetimeTotals(token)
-            return sponsors.map((sponsorship) => {
-                const url = normalizePatreonUrl(sponsorship.sponsor.linkUrl)
-                const totalDollars = url ? lifetimeTotals.get(url) : undefined
-                if (!totalDollars || totalDollars <= 0) {
-                    return sponsorship
-                }
-
-                return {
-                    ...sponsorship,
-                    totalDollars,
-                }
-            })
-        } catch (error) {
-            console.warn('[sponsorkit] Failed to fetch Patreon lifetime totals:', error)
-            return sponsors
-        }
-    },
 
     renders: [
         {
