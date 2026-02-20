@@ -75,10 +75,6 @@ const sponsors: BadgePreset = {
     },
 }
 
-function getTierLabel(monthlyDollars: number): string {
-    return tierLabels.find(t => monthlyDollars >= t.minDollars)?.label ?? '☕ Backer'
-}
-
 function formatDate(dateStr?: string): string {
     if (!dateStr) return '—'
     const d = new Date(dateStr)
@@ -91,11 +87,6 @@ function escapeXml(str: string): string {
 
 function getPrivacyLevel(sponsorship: Sponsorship): string {
     return (sponsorship as Sponsorship & { privacyLevel?: string }).privacyLevel ?? 'PUBLIC'
-}
-
-function getSponsorDisplayName(sponsor: Sponsorship['sponsor']): string {
-    const name = (sponsor.name || sponsor.login || '').trim()
-    return name || 'Private Sponsor'
 }
 
 function movePastMembersBelowMembers<T extends { tier: { title?: string } }>(tierPartitions: T[]): T[] {
@@ -185,8 +176,7 @@ function composeLeaderboard(composer: SvgComposer, allSponsors: Sponsorship[], c
     const headerHeight = 40
     const colWidths = {
         rank: 50,
-        name: tableWidth - 50 - 120 - 120 - 120,
-        tier: 120,
+        name: tableWidth - 50 - 120 - 120,
         since: 120,
         amount: 120,
     }
@@ -206,8 +196,6 @@ function composeLeaderboard(composer: SvgComposer, allSponsors: Sponsorship[], c
     colX += colWidths.rank
     composer.addRaw(`<text x="${colX}" y="${headerY + 26}" fill="${subTextColor}" font-size="12" font-weight="600">Sponsor</text>`)
     colX += colWidths.name
-    composer.addRaw(`<text x="${colX}" y="${headerY + 26}" fill="${subTextColor}" font-size="12" font-weight="600">Tier</text>`)
-    colX += colWidths.tier
     composer.addRaw(`<text x="${colX}" y="${headerY + 26}" fill="${subTextColor}" font-size="12" font-weight="600">Since</text>`)
     colX += colWidths.since
     composer.addRaw(`<text x="${colX}" y="${headerY + 26}" fill="${subTextColor}" font-size="12" font-weight="600">$/month</text>`)
@@ -235,7 +223,7 @@ function composeLeaderboard(composer: SvgComposer, allSponsors: Sponsorship[], c
         composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${textColor}" font-size="13">${rankLabel}</text>`)
         cx += colWidths.rank
 
-        const name = escapeXml(getSponsorDisplayName(s.sponsor))
+        const name = escapeXml((s.sponsor.name || s.sponsor.login).trim())
         const displayName = name.length > 20 ? name.slice(0, 18) + '…' : name
         const url = s.sponsor.websiteUrl || s.sponsor.linkUrl
         if (url) {
@@ -244,9 +232,6 @@ function composeLeaderboard(composer: SvgComposer, allSponsors: Sponsorship[], c
             composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${textColor}" font-size="13">${displayName}</text>`)
         }
         cx += colWidths.name
-
-        composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${subTextColor}" font-size="12">${getTierLabel(s.monthlyDollars)}</text>`)
-        cx += colWidths.tier
 
         composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${subTextColor}" font-size="12">${formatDate(s.createdAt)}</text>`)
         cx += colWidths.since
@@ -325,7 +310,7 @@ function composePastSponsorsLeaderboard(composer: SvgComposer, allSponsors: Spon
         composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${textColor}" font-size="13">${i + 1}</text>`)
         cx += colWidths.rank
 
-        const name = escapeXml(getSponsorDisplayName(s.sponsor))
+        const name = escapeXml((s.sponsor.name || s.sponsor.login).trim())
         const displayName = name.length > 20 ? name.slice(0, 18) + '…' : name
         const url = s.sponsor.websiteUrl || s.sponsor.linkUrl
         if (url) {
@@ -362,7 +347,6 @@ function composeAllTimeLeaderboard(composer: SvgComposer, allSponsors: Sponsorsh
         sponsor: Sponsorship['sponsor']
         createdAt?: string
         totalAmount: number
-        highestMonthlyDollars: number
         isActive: boolean
     }
 
@@ -370,7 +354,6 @@ function composeAllTimeLeaderboard(composer: SvgComposer, allSponsors: Sponsorsh
     for (const sponsorship of allSponsors) {
         const key = getSponsorAggregateKey(sponsorship)
         const contributionAmount = getContributionAmount(sponsorship)
-        const currentMonthlyAmount = Math.max(0, sponsorship.monthlyDollars)
         const existing = aggregateMap.get(key)
 
         if (!existing) {
@@ -378,14 +361,12 @@ function composeAllTimeLeaderboard(composer: SvgComposer, allSponsors: Sponsorsh
                 sponsor: sponsorship.sponsor,
                 createdAt: sponsorship.createdAt,
                 totalAmount: contributionAmount,
-                highestMonthlyDollars: currentMonthlyAmount,
                 isActive: sponsorship.monthlyDollars > 0,
             })
             continue
         }
 
         existing.totalAmount += contributionAmount
-        existing.highestMonthlyDollars = Math.max(existing.highestMonthlyDollars, currentMonthlyAmount)
         existing.isActive = existing.isActive || sponsorship.monthlyDollars > 0
 
         const existingDate = existing.createdAt ? Date.parse(existing.createdAt) : Number.NaN
@@ -418,8 +399,7 @@ function composeAllTimeLeaderboard(composer: SvgComposer, allSponsors: Sponsorsh
     const headerHeight = 40
     const colWidths = {
         rank: 50,
-        name: tableWidth - 50 - 100 - 120 - 120 - 100,
-        tier: 100,
+        name: tableWidth - 50 - 120 - 120 - 100,
         since: 120,
         amount: 120,
         status: 100,
@@ -439,8 +419,6 @@ function composeAllTimeLeaderboard(composer: SvgComposer, allSponsors: Sponsorsh
     colX += colWidths.rank
     composer.addRaw(`<text x="${colX}" y="${headerY + 26}" fill="${subTextColor}" font-size="12" font-weight="600">Sponsor</text>`)
     colX += colWidths.name
-    composer.addRaw(`<text x="${colX}" y="${headerY + 26}" fill="${subTextColor}" font-size="12" font-weight="600">Tier</text>`)
-    colX += colWidths.tier
     composer.addRaw(`<text x="${colX}" y="${headerY + 26}" fill="${subTextColor}" font-size="12" font-weight="600">Since</text>`)
     colX += colWidths.since
     composer.addRaw(`<text x="${colX}" y="${headerY + 26}" fill="${subTextColor}" font-size="12" font-weight="600">Combined</text>`)
@@ -469,7 +447,7 @@ function composeAllTimeLeaderboard(composer: SvgComposer, allSponsors: Sponsorsh
         composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${textColor}" font-size="13">${rankLabel}</text>`)
         cx += colWidths.rank
 
-        const name = escapeXml(getSponsorDisplayName(s.sponsor))
+        const name = escapeXml((s.sponsor.name || s.sponsor.login).trim())
         const displayName = name.length > 20 ? name.slice(0, 18) + '…' : name
         const url = s.sponsor.websiteUrl || s.sponsor.linkUrl
         if (url) {
@@ -478,10 +456,6 @@ function composeAllTimeLeaderboard(composer: SvgComposer, allSponsors: Sponsorsh
             composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${textColor}" font-size="13">${displayName}</text>`)
         }
         cx += colWidths.name
-
-        const tierLabel = s.highestMonthlyDollars > 0 ? getTierLabel(s.highestMonthlyDollars) : '—'
-        composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${subTextColor}" font-size="12">${tierLabel}</text>`)
-        cx += colWidths.tier
 
         composer.addRaw(`<text x="${cx}" y="${rowY + 24}" fill="${subTextColor}" font-size="12">${formatDate(s.createdAt)}</text>`)
         cx += colWidths.since
@@ -541,15 +515,6 @@ const inlineCSS = `
       font-size: 20px;
     }
 `
-
-const tierLabels: { minDollars: number; label: string }[] = [
-    { minDollars: 500, label: '💎 Platinum' },
-    { minDollars: 100, label: '🥇 Gold' },
-    { minDollars: 50, label: '🥈 Silver' },
-    { minDollars: 25, label: '🥉 Bronze' },
-    { minDollars: 10, label: '🟢 Member' },
-    { minDollars: 0, label: '☕ Backer' },
-]
 
 const sharedTiers = [
     {
