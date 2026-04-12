@@ -1,0 +1,26 @@
+diff --git a/dist/shared/sponsorkit.D4Gzyh4z.mjs b/dist/shared/sponsorkit.D4Gzyh4z.mjs
+index 1d688c7b0a7377d79c18e090a7bc2f9888506bca..dc920b917b7113654f53a4a22f327dce2f8f1dd2 100644
+--- a/dist/shared/sponsorkit.D4Gzyh4z.mjs
++++ b/dist/shared/sponsorkit.D4Gzyh4z.mjs
+@@ -885,7 +885,7 @@ async function fetchGitHubSponsors(token, login, type, config) {
+   let cursor;
+   const tiers = config.tiers?.filter((tier) => tier.monthlyDollars && tier.monthlyDollars > 0).sort((a, b) => b.monthlyDollars - a.monthlyDollars);
+   do {
+-    const query = makeQuery(login, type, !config.includePastSponsors, cursor);
++    const query = makeQuery(login, type, !config.includePastSponsors, cursor, config.includePrivate);
+     const data = await $fetch(API$1, {
+       method: "POST",
+       body: { query },
+@@ -942,10 +942,10 @@ ${JSON.stringify(data.errors, null, 2)}`);
+   });
+   return processed;
+ }
+-function makeQuery(login, type, activeOnly = true, cursor) {
++function makeQuery(login, type, activeOnly = true, cursor, includePrivate = false) {
+   return graphql$1`{
+   ${type}(login: "${login}") {
+-    sponsorshipsAsMaintainer(activeOnly: ${Boolean(activeOnly)}, first: 100${cursor ? ` after: "${cursor}"` : ""}) {
++    sponsorshipsAsMaintainer(activeOnly: ${Boolean(activeOnly)}, includePrivate: ${Boolean(includePrivate)}, first: 100${cursor ? ` after: "${cursor}"` : ""}) {
+       totalCount
+       pageInfo {
+         endCursor

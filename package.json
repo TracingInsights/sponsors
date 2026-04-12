@@ -14,7 +14,7 @@
       "sharp"
     ],
     "patchedDependencies": {
-      "sponsorkit@16.5.0": "patches/sponsorkit@16.5.0.patch"
+      "sponsorkit@17.1.0": "patches/sponsorkit@17.1.0.patch"
     }
   }
 }
