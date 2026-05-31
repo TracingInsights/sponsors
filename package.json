@@ -2,7 +2,8 @@
   "type": "module",
   "packageManager": "pnpm@10.4.1",
   "scripts": {
-    "build": "sponsorkit"
+    "build": "sponsorkit",
+    "postinstall": "node scripts/patch-sponsorkit.mjs"
   },
   "devDependencies": {
     "@types/node": "^25.3.0",
@@ -12,9 +13,6 @@
     "onlyBuiltDependencies": [
       "esbuild",
       "sharp"
-    ],
-    "patchedDependencies": {
-      "sponsorkit@17.1.0": "patches/sponsorkit@17.1.0.patch"
-    }
+    ]
   }
 }
