@@ -2,25 +2,34 @@
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
-const SHARED_DIR = 'node_modules/sponsorkit/dist/shared'
+const DIST_DIR = 'node_modules/sponsorkit/dist'
 
 /**
- * Postinstall script to patch sponsorkit with includePrivate support.
+ * Postinstall script to patch sponsorkit with includePrivate support
+ * and the Patreon v2 campaigns endpoint.
  * This replaces the version-pinned pnpm patch with a flexible pattern-based approach
  * that survives dependabot version bumps.
  */
 
+// v17 bundles providers in dist/shared/sponsorkit.*.mjs, v18 in dist/types-*.mjs
 function findMjsFile(dir) {
-  const files = readdirSync(dir)
-  const mjsFile = files.find(f => f.endsWith('.mjs') && f.startsWith('sponsorkit.'))
+  const candidates = [join(dir, 'shared'), dir].flatMap((d) => {
+    try {
+      return readdirSync(d).filter(f => f.endsWith('.mjs')).map(f => join(d, f))
+    }
+    catch {
+      return []
+    }
+  })
+  const mjsFile = candidates.find(f => readFileSync(f, 'utf8').includes('function makeQuery('))
   if (!mjsFile) {
-    throw new Error(`Could not find sponsorkit.*.mjs in ${dir}. Found: ${files.join(', ')}`)
+    throw new Error(`Could not find sponsorkit provider bundle in ${dir}. Found: ${candidates.join(', ')}`)
   }
-  return join(dir, mjsFile)
+  return mjsFile
 }
 
 function applyPatch() {
-  const filePath = findMjsFile(SHARED_DIR)
+  const filePath = findMjsFile(DIST_DIR)
   let content = readFileSync(filePath, 'utf8')
   let modified = false
 
@@ -57,9 +66,20 @@ function applyPatch() {
     }
   }
 
+  // 4. Patreon retired the v1 campaigns endpoint (410 Gone); use the v2 equivalent
+  //    Before: https://www.patreon.com/api/oauth2/api/current_user/campaigns?include=null
+  //    After:  https://www.patreon.com/api/oauth2/v2/campaigns
+  {
+    const v1 = 'https://www.patreon.com/api/oauth2/api/current_user/campaigns?include=null'
+    if (content.includes(v1)) {
+      content = content.replaceAll(v1, 'https://www.patreon.com/api/oauth2/v2/campaigns')
+      modified = true
+    }
+  }
+
   if (modified) {
     writeFileSync(filePath, content, 'utf8')
-    console.log('[sponsorkit-patch] ✅ Applied includePrivate patch to', filePath)
+    console.log('[sponsorkit-patch] ✅ Applied patches to', filePath)
   } else {
     console.log('[sponsorkit-patch] ℹ️  Patch already applied or pattern not found in', filePath)
   }
@@ -72,6 +92,6 @@ try {
     console.log('[sponsorkit-patch] ℹ️  sponsorkit is not installed yet, skipping patch.')
   } else {
     console.error('[sponsorkit-patch] ⚠️  Failed to apply sponsorkit patch:', err.message)
-    // Don't throw — let CI/build continue. The patch is a nice-to-have for includePrivate.
+    // Don't throw — let CI/build continue.
   }
 }
